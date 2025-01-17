@@ -1,0 +1,87 @@
+// Initialize XML content with proper values from invoice data
+xmlContent = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
+xmlContent = xmlContent + "<TaxInvoiceBulk xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n";
+xmlContent = xmlContent + "  <TIN>isi nomor npwp penjual</TIN>\n";
+xmlContent = xmlContent + "  <ListOfTaxInvoice>\n";
+organizationID = organization.get("organization_id");
+org_Name = organization.get("name");
+// Loop through each invoice
+for each  invoiceID in invoices
+{
+	list_item = invoiceID.get("line_items");
+	tanggal_faktur = invoiceID.get("date");
+	referensi = invoiceID.get("invoice_number");
+	customer_name = invoiceID.get("customer_name");
+	billing_address = invoiceID.get("billing_address");
+	// Get customer data
+	search = {"contact_id":invoiceID.get("customer_id")};
+	contactData = zoho.books.getRecords("Contacts",organizationID,search,"contact");
+	no_npwp = contactData.get("contacts").get(0).get("cf_nomor_npwp");
+	nama_npwp = contactData.get("contacts").get(0).get("cf_nama_pt_npwp");
+	alamat_npwp = contactData.get("contacts").get(0).get("cf_alamat_npwp");
+	email = "";
+	xmlContent = xmlContent + "    <TaxInvoice>\n";
+	xmlContent = xmlContent + "      <TaxInvoiceDate>" + tanggal_faktur + "</TaxInvoiceDate>\n";
+	xmlContent = xmlContent + "      <TaxInvoiceOpt>Normal</TaxInvoiceOpt>\n";
+	xmlContent = xmlContent + "      <TrxCode>04</TrxCode>\n";
+	xmlContent = xmlContent + "      <AddInfo></AddInfo>\n";
+	xmlContent = xmlContent + "      <CustomDoc></CustomDoc>\n";
+	xmlContent = xmlContent + "      <RefDesc>" + referensi + "</RefDesc>\n";
+	xmlContent = xmlContent + "      <FacilityStamp></FacilityStamp>\n";
+	xmlContent = xmlContent + "      <SellerIDTKU>isi nomor npwp penjual + 000000</SellerIDTKU>\n";
+	xmlContent = xmlContent + "      <BuyerTin>" + no_npwp + "</BuyerTin>\n";
+	xmlContent = xmlContent + "      <BuyerDocument>TIN</BuyerDocument>\n";
+	xmlContent = xmlContent + "      <BuyerCountry>IDN</BuyerCountry>\n";
+	xmlContent = xmlContent + "      <BuyerDocumentNumber>" + referensi + "</BuyerDocumentNumber>\n";
+	xmlContent = xmlContent + "      <BuyerName>" + nama_npwp + "</BuyerName>\n";
+	xmlContent = xmlContent + "      <BuyerAdress>" + alamat_npwp + "</BuyerAdress>\n";
+	xmlContent = xmlContent + "      <BuyerEmail>" + email + "</BuyerEmail>\n";
+	xmlContent = xmlContent + "      <BuyerIDTKU>" + no_npwp + "000000</BuyerIDTKU>\n";
+	xmlContent = xmlContent + "      <ListOfGoodService>\n";
+	// Loop through line items
+	for each  item in list_item
+	{
+		nama_produk = item.get("name");
+		description = item.get("description");
+		harga_satuan = item.get("rate");
+		jumlah = item.get("quantity");
+		harga_total = item.get("item_total");
+		diskon = item.get("discount_amount");
+		tax_base = harga_total - diskon;
+		other_tax = tax_base * 11 / 12;
+		ppn = other_tax * 0.12;
+		xmlContent = xmlContent + "        <GoodService>\n";
+		xmlContent = xmlContent + "          <Opt>A</Opt>\n";
+		xmlContent = xmlContent + "          <Code>000000</Code>\n";
+		xmlContent = xmlContent + "          <Name>" + description + "</Name>\n";
+		xmlContent = xmlContent + "          <Unit>UM.0021</Unit>\n";
+		xmlContent = xmlContent + "          <Price>" + harga_satuan + "</Price>\n";
+		xmlContent = xmlContent + "          <Qty>" + jumlah + "</Qty>\n";
+		xmlContent = xmlContent + "          <TotalDiscount>" + diskon + "</TotalDiscount>\n";
+		xmlContent = xmlContent + "          <TaxBase>" + tax_base + "</TaxBase>\n";
+		xmlContent = xmlContent + "          <OtherTaxBase>" + other_tax + "</OtherTaxBase>\n";
+		xmlContent = xmlContent + "          <VATRate>12</VATRate>\n";
+		xmlContent = xmlContent + "          <VAT>" + ppn + "</VAT>\n";
+		xmlContent = xmlContent + "          <STLGRate>0</STLGRate>\n";
+		xmlContent = xmlContent + "          <STLG>0</STLG>\n";
+		xmlContent = xmlContent + "        </GoodService>\n";
+	}
+	xmlContent = xmlContent + "      </ListOfGoodService>\n";
+	xmlContent = xmlContent + "    </TaxInvoice>\n";
+}
+xmlContent = xmlContent + "  </ListOfTaxInvoice>\n";
+xmlContent = xmlContent + "</TaxInvoiceBulk>";
+fileXML = xmlContent.toFile(org_Name + ".xml");
+msgStr = "Ini adalah pesan Otomatis untuk generate faktur NPWP ke XML, File terlampir.";
+sendmail
+[
+	from :zoho.adminuserid
+	to :zoho.loginuserid
+	subject :"Faktur NPWP ke XML - Zohobooks"
+	message :msgStr
+	Attachments :file:fileXML
+]
+resultMap = Map();
+resultMap.put("code",0);
+resultMap.put("xml_data",xmlContent);
+return resultMap;
